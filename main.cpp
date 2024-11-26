@@ -12,27 +12,47 @@
 // Function to extract unique words and build the tree
 std::shared_ptr<const Node> extractUniqueWords(const std::string& filename) {
     std::ifstream file(filename);
-    if (!file.is_open()) {
-        std::cerr << "Error: Could not open file " << filename << std::endl;
+    if (!file) {
+        std::cerr << "Error opening file." << std::endl;
         return nullptr;
     }
 
     std::istreambuf_iterator<char> it(file), end;
     std::string content(it, end);
 
-    std::transform(content.begin(), content.end(), content.begin(), ::tolower);
+    auto transformString = [](const std::string& input, const std::function<char(char)>& transformer) -> std::string {
+        std::string result(input.size(), '\0');
+        std::transform(input.begin(), input.end(), result.begin(), transformer);
+        return result;
+    };
+
+    auto tokenize = [](const std::string& text, const std::regex& regexPattern) -> std::vector<std::string> {
+        std::sregex_iterator wordsBegin(text.begin(), text.end(), regexPattern);
+        std::sregex_iterator wordsEnd;
+
+        // Convert regex matches to a vector using a lambda
+        std::vector<std::string> tokens;
+        std::for_each(wordsBegin, wordsEnd, [&tokens](const std::smatch& match) {
+            tokens.push_back(match.str());
+        });
+
+        return tokens;
+    };
+
+    std::string lowerContent = transformString(content, [](char c) { return std::tolower(c); });
 
     std::regex wordRegex("[a-zA-Z]+");
-    auto wordsBegin = std::sregex_iterator(content.begin(), content.end(), wordRegex);
-    auto wordsEnd = std::sregex_iterator();
+
+    std::vector<std::string> words = tokenize(lowerContent, wordRegex);
+
 
     std::shared_ptr<const Node> root = nullptr;
 
 
 
-    std::for_each(wordsBegin, wordsEnd, [&](const std::smatch& match) {
+    std::for_each(words.begin(), words.end(), [&](const std::string& match) {
         bool increased = false;
-        root = insert(root, match.str(), increased);
+        root = insert(root, match, increased);
     });
     return root;
 }
@@ -47,7 +67,7 @@ int main() {
         return res;
     }
 
-    std::string filename = "war_and_peace.txt";
+    std::string filename = "C:\\Users\\morit\\Documents\\Technikum\\5 Semester\\funktionales Programmierung\\RedBlackTree\\war_and_peace.txt";
 
     auto tree = extractUniqueWords(filename);
     if (!tree) {
