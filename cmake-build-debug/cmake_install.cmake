@@ -1,4 +1,4 @@
-# Install script for directory: C:/Users/morit/Documents/Technikum/5 Semester/funktionales Programmierung/Projekt
+# Install script for directory: D:/FH/5.Semester/FPROG/Projekt/RedBlackTree
 
 # Set the install prefix
 if(NOT DEFINED CMAKE_INSTALL_PREFIX)
@@ -34,7 +34,7 @@ endif()
 
 # Set default install directory permissions.
 if(NOT DEFINED CMAKE_OBJDUMP)
-  set(CMAKE_OBJDUMP "E:/CLion 2022.2.4/bin/mingw/bin/objdump.exe")
+  set(CMAKE_OBJDUMP "D:/Program Files/JetBrains/CLion 2023.1.2/bin/mingw/bin/objdump.exe")
 endif()
 
 if(CMAKE_INSTALL_COMPONENT)
@@ -45,5 +45,5 @@ endif()
 
 string(REPLACE ";" "\n" CMAKE_INSTALL_MANIFEST_CONTENT
        "${CMAKE_INSTALL_MANIFEST_FILES}")
-file(WRITE "C:/Users/morit/Documents/Technikum/5 Semester/funktionales Programmierung/Projekt/cmake-build-debug/${CMAKE_INSTALL_MANIFEST}"
+file(WRITE "D:/FH/5.Semester/FPROG/Projekt/RedBlackTree/cmake-build-debug/${CMAKE_INSTALL_MANIFEST}"
      "${CMAKE_INSTALL_MANIFEST_CONTENT}")
