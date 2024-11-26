@@ -59,16 +59,17 @@ std::shared_ptr<const Node> extractUniqueWords(const std::string& filename) {
 
     std::regex wordRegex("[a-zA-Z]+");
 
-    auto processChunk = [&](size_t index, size_t start, size_t end) {
-        if (end < contentSize) {
-            while (end < contentSize && std::isalpha(lowerContent[end])) {
-                ++end;
+    auto processChunk = [&](size_t index, const size_t start, const  size_t end) {
+        size_t newEnd = end;
+        if (newEnd < contentSize) {
+            while (newEnd < contentSize && std::isalpha(lowerContent[newEnd])) {
+                ++newEnd;
             }
         } else {
-            end = contentSize;
+            newEnd = contentSize;
         }
 
-        std::string chunk = lowerContent.substr(start, end - start);
+        std::string chunk = lowerContent.substr(start, newEnd - start);
 
         std::sregex_iterator wordsBegin(chunk.begin(), chunk.end(), wordRegex);
         std::sregex_iterator wordsEnd;
