@@ -8,15 +8,36 @@
 #include <algorithm>
 #include <sstream>
 #include "RedBlackTree.h"
+#include <chrono>
+#include <iostream>
+#include <fstream>
+#include <string>
+#include <vector>
+#include <regex>
+#include <memory>
+#include <thread>
+#include <mutex>
+#include <algorithm>
+#include <functional>
+#include <iterator>
 
-// Function to extract unique words and build the tree
+// Helper function for threading
+std::shared_ptr<const Node> mergeTrees(const std::shared_ptr<const Node> root1, const std::shared_ptr<const Node> root2) {
+    if (!root2) return root1;
+    bool increased = false;
+    std::shared_ptr<const Node> newRoot = nullptr;
+    newRoot = insert(root1, root2->key, increased);
+    newRoot = mergeTrees(newRoot, root2->left);
+    newRoot = mergeTrees(newRoot, root2->right);
+    return newRoot;
+}
+
 std::shared_ptr<const Node> extractUniqueWords(const std::string& filename) {
     std::ifstream file(filename);
     if (!file) {
         std::cerr << "Error opening file." << std::endl;
         return nullptr;
     }
-
     std::istreambuf_iterator<char> it(file), end;
     std::string content(it, end);
 
@@ -26,38 +47,62 @@ std::shared_ptr<const Node> extractUniqueWords(const std::string& filename) {
         return result;
     };
 
-    auto tokenize = [](const std::string& text, const std::regex& regexPattern) -> std::vector<std::string> {
-        std::sregex_iterator wordsBegin(text.begin(), text.end(), regexPattern);
-        std::sregex_iterator wordsEnd;
-
-        // Convert regex matches to a vector using a lambda
-        std::vector<std::string> tokens;
-        std::for_each(wordsBegin, wordsEnd, [&tokens](const std::smatch& match) {
-            tokens.push_back(match.str());
-        });
-
-        return tokens;
-    };
-
     std::string lowerContent = transformString(content, [](char c) { return std::tolower(c); });
+
+    size_t numThreads = std::thread::hardware_concurrency();
+    if (numThreads == 0) numThreads = 2; // Ensure at least 2 threads
+    size_t contentSize = lowerContent.size();
+    size_t chunkSize = contentSize / numThreads;
+
+    std::vector<std::thread> threads;
+    std::vector<std::shared_ptr<const Node>> localTrees(numThreads);
 
     std::regex wordRegex("[a-zA-Z]+");
 
-    std::vector<std::string> words = tokenize(lowerContent, wordRegex);
+    auto processChunk = [&](size_t index, size_t start, size_t end) {
+        if (end < contentSize) {
+            while (end < contentSize && std::isalpha(lowerContent[end])) {
+                ++end;
+            }
+        } else {
+            end = contentSize;
+        }
 
+        std::string chunk = lowerContent.substr(start, end - start);
 
-    std::shared_ptr<const Node> root = nullptr;
+        std::sregex_iterator wordsBegin(chunk.begin(), chunk.end(), wordRegex);
+        std::sregex_iterator wordsEnd;
 
+        std::shared_ptr<const Node> localRoot = nullptr;
+        for (auto it = wordsBegin; it != wordsEnd; ++it) {
+            bool increased = false;
+            localRoot = insert(localRoot, it->str(), increased);
+        }
 
+        localTrees[index] = localRoot;
+    };
 
-    std::for_each(words.begin(), words.end(), [&](const std::string& match) {
-        bool increased = false;
-        root = insert(root, match, increased);
-    });
-    return root;
+    for (size_t i = 0; i < numThreads; ++i) {
+        size_t start = i * chunkSize;
+        size_t end = (i == numThreads - 1) ? contentSize : (i + 1) * chunkSize;
+        threads.emplace_back(processChunk, i, start, end);
+    }
+
+    for (auto& thread : threads) {
+        thread.join();
+    }
+
+    std::shared_ptr<const Node> globalRoot = nullptr;
+    for (const auto& localRoot : localTrees) {
+        globalRoot = mergeTrees(globalRoot, localRoot);
+    }
+
+    return globalRoot;
 }
 
+
 int main() {
+
     // File name
     doctest::Context context;
 
@@ -68,6 +113,8 @@ int main() {
     }
 
     std::string filename = "C:\\Users\\morit\\Documents\\Technikum\\5 Semester\\funktionales Programmierung\\RedBlackTree\\war_and_peace.txt";
+
+    auto startTime = std::chrono::high_resolution_clock::now();
 
     auto tree = extractUniqueWords(filename);
     if (!tree) {
@@ -89,6 +136,10 @@ int main() {
 
     printTreeToFile(tree, outputFile);
     outputFile.close();
+    auto endTime = std::chrono::high_resolution_clock::now();
+    auto totalDuration = std::chrono::duration_cast<std::chrono::milliseconds>(endTime - startTime).count();
+    std::cout << "Total execution time: " << totalDuration << " ms" << std::endl;
+
 
     return 0;
 }
