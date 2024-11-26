@@ -9,33 +9,32 @@
 #include <sstream>
 #include "RedBlackTree.h"
 
-RedBlackTree extractUniqueWords(const std::string& filename) {
-    // Open the file
+// Function to extract unique words and build the tree
+std::shared_ptr<const Node> extractUniqueWords(const std::string& filename) {
     std::ifstream file(filename);
     if (!file.is_open()) {
         std::cerr << "Error: Could not open file " << filename << std::endl;
+        return nullptr;
     }
 
-    RedBlackTree tree;
-
-    // Verwende einen Stream-Iterator, um den gesamten Dateiinhalt einzulesen
     std::istreambuf_iterator<char> it(file), end;
     std::string content(it, end);
 
-    // Konvertiere den gesamten Inhalt in Kleinbuchstaben
     std::transform(content.begin(), content.end(), content.begin(), ::tolower);
 
-    // Verwende Regex, um alle Wörter zu finden
     std::regex wordRegex("[a-zA-Z]+");
     auto wordsBegin = std::sregex_iterator(content.begin(), content.end(), wordRegex);
     auto wordsEnd = std::sregex_iterator();
 
-    // Füge jedes Wort in den Baum ein
-    for (auto it = wordsBegin; it != wordsEnd; ++it) {
-        tree.insert(it->str());
-    }
+    std::shared_ptr<const Node> root = nullptr;
 
-    return tree;
+
+
+    std::for_each(wordsBegin, wordsEnd, [&](const std::smatch& match) {
+        bool increased = false;
+        root = insert(root, match.str(), increased);
+    });
+    return root;
 }
 
 int main() {
@@ -48,99 +47,98 @@ int main() {
         return res;
     }
 
-    std::string filename = "D:\\FH\\5.Semester\\FPROG\\Projekt\\RedBlackTree\\war_and_peace.txt";
+    std::string filename = "war_and_peace.txt";
 
-    // Extract and print unique words
     auto tree = extractUniqueWords(filename);
+    if (!tree) {
+        return 1;
+    }
 
+    // Write the tree to an output file
     std::ofstream outputFile("output.txt");
     if (!outputFile.is_open()) {
         std::cerr << "Error: Could not open output.txt for writing." << std::endl;
         return 1;
     }
 
-    tree.printTree(outputFile);
+    auto printTreeToFile = [&](const std::shared_ptr<const Node>& tree, std::ostream& output) {
+        if (tree) {
+            printTree(tree, output);
+        }
+    };
+
+    printTreeToFile(tree, outputFile);
     outputFile.close();
+
     return 0;
 }
 
 // Testfälle
-TEST_CASE("RedBlackTree Funktionen") {
-    RedBlackTree tree;
+TEST_CASE("RedBlackTree Functions") {
 
-    SUBCASE("Einfügen eines einzelnen Elements") {
-        tree.insert("apple");
-        CHECK(tree.find("apple") == true);
-        CHECK(tree.getCount("apple") == 1);
+
+    // Initialize the tree root
+    std::shared_ptr<const Node> root = nullptr;
+
+    SUBCASE("Insert a single element") {
+        bool increased = false;
+        root = insert(root, "apple", increased);
+
+        CHECK(find(root, "apple") == true);
+        CHECK(getCount(root, "apple") == 1);
     }
 
-    SUBCASE("Einfügen mehrerer eindeutiger Elemente") {
-        tree.insert("apple");
-        tree.insert("banana");
-        tree.insert("cherry");
+    SUBCASE("Insert multiple unique elements") {
+        bool increased = false;
+        root = insert(root, "apple", increased);
+        root = insert(root, "banana", increased);
+        root = insert(root, "cherry", increased);
 
-        CHECK(tree.find("apple") == true);
-        CHECK(tree.find("banana") == true);
-        CHECK(tree.find("cherry") == true);
-        CHECK(tree.find("date") == false);
+        CHECK(find(root, "apple") == true);
+        CHECK(find(root, "banana") == true);
+        CHECK(find(root, "cherry") == true);
+        CHECK(find(root, "date") == false);
 
-        CHECK(tree.getCount("apple") == 1);
-        CHECK(tree.getCount("banana") == 1);
-        CHECK(tree.getCount("cherry") == 1);
+        CHECK(getCount(root, "apple") == 1);
+        CHECK(getCount(root, "banana") == 1);
+        CHECK(getCount(root, "cherry") == 1);
     }
 
-    SUBCASE("Einfügen von Duplikaten und Überprüfung der Zähler") {
-        tree.insert("apple");
-        tree.insert("banana");
-        tree.insert("apple");
-        tree.insert("apple");
-        tree.insert("banana");
+    SUBCASE("Insert duplicates and verify counts") {
+        bool increased = false;
+        root = insert(root, "apple", increased);
+        root = insert(root, "banana", increased);
+        root = insert(root, "apple", increased);
+        root = insert(root, "apple", increased);
+        root = insert(root, "banana", increased);
 
-        CHECK(tree.find("apple") == true);
-        CHECK(tree.find("banana") == true);
+        CHECK(find(root, "apple") == true);
+        CHECK(find(root, "banana") == true);
 
-        CHECK(tree.getCount("apple") == 3);
-        CHECK(tree.getCount("banana") == 2);
+        CHECK(getCount(root, "apple") == 3);
+        CHECK(getCount(root, "banana") == 2);
     }
 
-    SUBCASE("Suche nach nicht vorhandenen Elementen") {
-        tree.insert("apple");
-        tree.insert("banana");
+    SUBCASE("Search for non-existing elements") {
+        bool increased = false;
+        root = insert(root, "apple", increased);
+        root = insert(root, "banana", increased);
 
-        CHECK(tree.find("cherry") == false);
-        CHECK(tree.find("date") == false);
-        CHECK(tree.getCount("cherry") == 0);
-        CHECK(tree.getCount("date") == 0);
+        CHECK(find(root, "cherry") == false);
+        CHECK(find(root, "date") == false);
+        CHECK(getCount(root, "cherry") == 0);
+        CHECK(getCount(root, "date") == 0);
     }
 
-    SUBCASE("Überprüfung der Unveränderlichkeit") {
-        // Speichern des aktuellen Zustands des Baums
-        tree.insert("apple");
-        RedBlackTree treeVersion1 = tree; // Kopie des aktuellen Baums
+    SUBCASE("Test traversal and sorted output") {
+        bool increased = false;
+        root = insert(root, "banana", increased);
+        root = insert(root, "apple", increased);
+        root = insert(root, "cherry", increased);
 
-        // Ein weiteres Element einfügen
-        tree.insert("banana");
-        RedBlackTree treeVersion2 = tree; // Kopie nach weiterer Einfügung
-
-        // Überprüfen, dass treeVersion1 unverändert ist
-        CHECK(treeVersion1.find("apple") == true);
-        CHECK(treeVersion1.find("banana") == false);
-
-        // Überprüfen, dass treeVersion2 beide Elemente enthält
-        CHECK(treeVersion2.find("apple") == true);
-        CHECK(treeVersion2.find("banana") == true);
-    }
-
-    SUBCASE("Testen der Traversierung und Sortierung der Ausgabe") {
-        tree.insert("banana");
-        tree.insert("apple");
-        tree.insert("cherry");
-
-        // Abfangen der Ausgabe von printTree
         std::stringstream output;
-        tree.printTree(output);
+        printTree(root, output);
 
-        // Erwartete Ausgabe
         std::string expectedOutput =
                 "apple count: 1\n"
                 "banana count: 1\n"
@@ -149,28 +147,26 @@ TEST_CASE("RedBlackTree Funktionen") {
         CHECK(output.str() == expectedOutput);
     }
 
-    SUBCASE("Einfügen in absteigender Reihenfolge") {
-        tree.insert("d");
-        tree.insert("c");
-        tree.insert("b");
-        tree.insert("a");
+    SUBCASE("Insert in descending order") {
+        bool increased = false;
+        root = insert(root, "d", increased);
+        root = insert(root, "c", increased);
+        root = insert(root, "b", increased);
+        root = insert(root, "a", increased);
 
-        CHECK(tree.find("a") == true);
-        CHECK(tree.find("b") == true);
-        CHECK(tree.find("c") == true);
-        CHECK(tree.find("d") == true);
+        CHECK(find(root, "a") == true);
+        CHECK(find(root, "b") == true);
+        CHECK(find(root, "c") == true);
+        CHECK(find(root, "d") == true);
 
-        // Überprüfen der Zähler
-        CHECK(tree.getCount("a") == 1);
-        CHECK(tree.getCount("b") == 1);
-        CHECK(tree.getCount("c") == 1);
-        CHECK(tree.getCount("d") == 1);
+        CHECK(getCount(root, "a") == 1);
+        CHECK(getCount(root, "b") == 1);
+        CHECK(getCount(root, "c") == 1);
+        CHECK(getCount(root, "d") == 1);
 
-        // Abfangen der Ausgabe
         std::stringstream output;
-        tree.printTree(output);
+        printTree(root, output);
 
-        // Erwartete Ausgabe
         std::string expectedOutput =
                 "a count: 1\n"
                 "b count: 1\n"
@@ -180,28 +176,26 @@ TEST_CASE("RedBlackTree Funktionen") {
         CHECK(output.str() == expectedOutput);
     }
 
-    SUBCASE("Einfügen in aufsteigender Reihenfolge") {
-        tree.insert("a");
-        tree.insert("b");
-        tree.insert("c");
-        tree.insert("d");
+    SUBCASE("Insert in ascending order") {
+        bool increased = false;
+        root = insert(root, "a", increased);
+        root = insert(root, "b", increased);
+        root = insert(root, "c", increased);
+        root = insert(root, "d", increased);
 
-        CHECK(tree.find("a") == true);
-        CHECK(tree.find("b") == true);
-        CHECK(tree.find("c") == true);
-        CHECK(tree.find("d") == true);
+        CHECK(find(root, "a") == true);
+        CHECK(find(root, "b") == true);
+        CHECK(find(root, "c") == true);
+        CHECK(find(root, "d") == true);
 
-        // Überprüfen der Zähler
-        CHECK(tree.getCount("a") == 1);
-        CHECK(tree.getCount("b") == 1);
-        CHECK(tree.getCount("c") == 1);
-        CHECK(tree.getCount("d") == 1);
+        CHECK(getCount(root, "a") == 1);
+        CHECK(getCount(root, "b") == 1);
+        CHECK(getCount(root, "c") == 1);
+        CHECK(getCount(root, "d") == 1);
 
-        // Abfangen der Ausgabe
         std::stringstream output;
-        tree.printTree(output);
+        printTree(root, output);
 
-        // Erwartete Ausgabe
         std::string expectedOutput =
                 "a count: 1\n"
                 "b count: 1\n"
@@ -211,20 +205,19 @@ TEST_CASE("RedBlackTree Funktionen") {
         CHECK(output.str() == expectedOutput);
     }
 
-    SUBCASE("Große Anzahl von Einfügungen") {
+    SUBCASE("Large number of insertions") {
+        bool increased = false;
         for (int i = 0; i < 1000; ++i) {
-            tree.insert("key" + std::to_string(i));
+            root = insert(root, "key" + std::to_string(i), increased);
         }
 
-        // Überprüfen einiger Stichproben
-        CHECK(tree.find("key0") == true);
-        CHECK(tree.find("key500") == true);
-        CHECK(tree.find("key999") == true);
-        CHECK(tree.find("key1000") == false);
+        CHECK(find(root, "key0") == true);
+        CHECK(find(root, "key500") == true);
+        CHECK(find(root, "key999") == true);
+        CHECK(find(root, "key1000") == false);
 
-        // Überprüfen der Zähler
-        CHECK(tree.getCount("key0") == 1);
-        CHECK(tree.getCount("key500") == 1);
-        CHECK(tree.getCount("key999") == 1);
+        CHECK(getCount(root, "key0") == 1);
+        CHECK(getCount(root, "key500") == 1);
+        CHECK(getCount(root, "key999") == 1);
     }
 }
